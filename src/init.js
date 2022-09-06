@@ -4,7 +4,7 @@ import { nanoid } from 'nanoid';
 import view from './view.js';
 import resources from './locales/ru.js';
 import getPosts from './api/getPosts.js';
-import { xmlToDOM } from './utils/xml.js';
+import xmlToDOM from './utils/xml.js';
 import { getFeedData, getPostData } from './utils/rss.js';
 
 const i18nextInstance = i18n.createInstance();
