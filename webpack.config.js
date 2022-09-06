@@ -1,9 +1,11 @@
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+import HtmlWebpackPlugin from 'html-webpack-plugin';
+import MiniCssExtractPlugin from 'mini-css-extract-plugin';
+import path from 'path';
+import * as url from 'url';
 
-const path = require('path');
+const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
-module.exports = {
+export default {
     entry: './src/index.js',
     output: {
         filename: 'main.js',
