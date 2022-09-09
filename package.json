@@ -4,7 +4,8 @@
   "description": "RSS Reader",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "webpack serve --mode development",
+    "lint": "eslint src"
   },
   "repository": {
     "type": "git",
@@ -40,5 +41,8 @@
     "nanoid": "^4.0.0",
     "on-change": "^4.0.1",
     "yup": "^0.32.11"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
