@@ -1,4 +1,6 @@
-import { string, setLocale } from 'yup';
+import {
+  addMethod, string, setLocale,
+} from 'yup';
 import i18n from 'i18next';
 import { nanoid } from 'nanoid';
 import view from './view.js';
@@ -30,7 +32,11 @@ export default function init() {
         },
       });
 
-      const schema = string().url().min(1);
+      addMethod(string, 'isExist', function hasUrlAlreadyAddedTest() {
+        return this.test('isExist', i18nextInstance.t('errors.alreadyExist'), (url) => !state.feeds.has(url));
+      });
+
+      const schema = string().url().min(1).isExist();
 
       const watchedObject = view(state, i18nextInstance);
 
@@ -42,11 +48,6 @@ export default function init() {
           abortEarly: false,
         })
           .then(() => {
-            if (state.feeds.has(url)) {
-              watchedObject.feedback = { feedbackText: i18nextInstance.t('errors.alreadyExist') };
-              return;
-            }
-
             getPosts(url)
               .then((response) => {
                 const dom = xmlToDOM(response.data.contents);
