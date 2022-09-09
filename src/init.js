@@ -11,7 +11,6 @@ const i18nextInstance = i18n.createInstance();
 
 export default function init() {
   const state = {
-    url: '',
     feeds: new Map(),
     posts: new Map(),
 
@@ -35,23 +34,20 @@ export default function init() {
 
       const watchedObject = view(state, i18nextInstance);
 
-      document.querySelector('input').addEventListener('input', (event) => {
-        watchedObject.url = event.target.value;
-      });
-
       document.forms[0].addEventListener('submit', (event) => {
         event.preventDefault();
+        const url = new FormData(event.target).get('url');
 
-        schema.validate(watchedObject.url, {
+        schema.validate(url, {
           abortEarly: false,
         })
           .then(() => {
-            if (state.feeds.has(watchedObject.url)) {
+            if (state.feeds.has(url)) {
               watchedObject.feedback = { feedbackText: i18nextInstance.t('errors.alreadyExist') };
               return;
             }
 
-            getPosts(watchedObject.url)
+            getPosts(url)
               .then((response) => {
                 const dom = xmlToDOM(response.data.contents);
                 const errorNode = dom.querySelector('parsererror');
@@ -60,15 +56,14 @@ export default function init() {
                   return;
                 }
 
-                watchedObject.feeds.set(watchedObject.url, { ...getFeedData(dom), posts: [] });
+                watchedObject.feeds.set(url, { ...getFeedData(dom), posts: [] });
 
                 [...dom.querySelectorAll('item')].reverse().forEach((post) => {
                   const postId = nanoid();
                   watchedObject.posts.set(postId, { ...getPostData(post), hasViewed: false });
-                  watchedObject.feeds.get(watchedObject.url).posts.push(postId);
+                  watchedObject.feeds.get(url).posts.push(postId);
                 });
                 watchedObject.feedback = { feedbackText: i18nextInstance.t('success'), type: 'success' };
-                watchedObject.url = '';
               })
               .catch(() => {
                 watchedObject.feedback = { feedbackText: i18nextInstance.t('errors.network') };
