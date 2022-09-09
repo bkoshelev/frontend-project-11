@@ -87,46 +87,42 @@ export default function init() {
       });
       const reloadPosts = () => {
         setTimeout(() => {
-          if (state.feeds.size > 0) {
-            try {
-              Promise.all([...state.feeds.entries()]
-                .map(([feedURL]) => getPosts(feedURL)))
-                .then((responses) => {
-                  responses.forEach((response) => {
-                    const { url } = response.config.params;
-                    const { contents } = response.data;
+          try {
+            Promise.all([...state.feeds.entries()]
+              .map(([feedURL]) => getPosts(feedURL)))
+              .then((responses) => {
+                responses.forEach((response) => {
+                  const { url } = response.config.params;
+                  const { contents } = response.data;
 
-                    const dom = xmlToDOM(contents);
-                    const errorNode = dom.querySelector('parsererror');
-                    if (errorNode) {
-                      watchedObject.errors = i18nextInstance.t('errors.wrongFeed');
-                      return;
-                    }
-                    const feedPostsIds = state.feeds.get(url).posts;
+                  const dom = xmlToDOM(contents);
+                  const errorNode = dom.querySelector('parsererror');
+                  if (errorNode) {
+                    watchedObject.errors = i18nextInstance.t('errors.wrongFeed');
+                    return;
+                  }
+                  const feedPostsIds = state.feeds.get(url).posts;
 
-                    const feedPosts = [...state.posts
-                      .entries()]
-                      .filter(([postId]) => feedPostsIds.includes(postId));
+                  const feedPosts = [...state.posts
+                    .entries()]
+                    .filter(([postId]) => feedPostsIds.includes(postId));
 
-                    [...dom.querySelectorAll('item')]
-                      .reverse()
-                      .forEach((post) => {
-                        const newPostData = { ...getPostData(post), hasViewed: false };
-                        if (!feedPosts.some(([, postData]) => postData.title === newPostData.title)) {
-                          const postId = nanoid();
-                          watchedObject.posts.set(postId, newPostData);
-                          watchedObject.feeds.get(url).posts.push(postId);
-                        }
-                      });
-                  });
-
-                  reloadPosts();
+                  [...dom.querySelectorAll('item')]
+                    .reverse()
+                    .forEach((post) => {
+                      const newPostData = { ...getPostData(post), hasViewed: false };
+                      if (!feedPosts.some(([, postData]) => postData.title === newPostData.title)) {
+                        const postId = nanoid();
+                        watchedObject.posts.set(postId, newPostData);
+                        watchedObject.feeds.get(url).posts.push(postId);
+                      }
+                    });
                 });
-            } catch (error) {
-              watchedObject.feedback = { feedbackText: i18nextInstance.t('errors.network') };
-            }
-          } else {
-            reloadPosts();
+
+                reloadPosts();
+              });
+          } catch (error) {
+            watchedObject.feedback = { feedbackText: i18nextInstance.t('errors.network') };
           }
         }, 5000);
       };
