@@ -35,11 +35,11 @@ export default function init() {
 
       const watchedObject = view(state, i18nextInstance);
 
-      document.addEventListener('input', (event) => {
+      document.querySelector('input').addEventListener('input', (event) => {
         watchedObject.url = event.target.value;
       });
 
-      document.addEventListener('submit', (event) => {
+      document.forms[0].addEventListener('submit', (event) => {
         event.preventDefault();
 
         schema.validate(watchedObject.url, {
