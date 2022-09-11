@@ -14,10 +14,11 @@
       <div class="row ">
         <p>Начните читать RSS сегодня! Это легко, это красиво.</p>
       </div>
-      <form>
+      <form data-element="form">
         <div class="row">
           <div class="col">
             <input
+              data-element="newFeedInput"
               type="text"
               class="form-control"
               id="url-input"
@@ -29,7 +30,7 @@
             />
           </div>
           <div class="col">
-            <button type="submit" class="btn btn-primary" disabled>Добавить</button>
+            <button type="submit" class="btn btn-primary" disabled   data-element="addNewFeedButton">Добавить</button>
           </div>
         </div>
       </form>
@@ -37,16 +38,16 @@
         <p>Пример: https://ru.hexlet.io/lessons.rss</p>
       </div>
       <div class="row">
-        <p class="feedback small"></p>
+        <p class="feedback small" data-element="feedbackText"></p>
       </div>
 
     </div>
     <div class="container-fluid">
       <div class="row">
-        <div class="col posts">
+        <div class="col posts" data-element="posts">
           <div class="card border-0"></div>
         </div>
-        <div class="col feeds">
+        <div class="col" data-element="feeds">
           <div class="card border-0"></div>
 
         </div>
@@ -67,7 +68,7 @@
     <div class="modal-dialog" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title"></h5>
+          <h5 class="modal-title" data-element="modalTitle"></h5>
           <button
           type="button"
           class="btn-close close"
@@ -75,9 +76,9 @@
           aria-label="Close"
           ></button>
         </div>
-        <div class="modal-body text-break">
+        <div class="modal-body text-break" data-element="modalBody">
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer" data-element="modalFooter">
           <a
           class="btn btn-primary full-article"
           href="#"

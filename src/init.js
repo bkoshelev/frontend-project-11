@@ -2,12 +2,12 @@ import {
   addMethod, string, setLocale,
 } from 'yup';
 import i18n from 'i18next';
-import { nanoid } from 'nanoid';
+import { AxiosError } from 'axios';
 import view from './view.js';
 import resources from './locales/ru.js';
 import getPosts from './api/getPosts.js';
-import xmlToDOM from './utils/xml.js';
-import { getFeedData, getPostData } from './utils/rss.js';
+import XMLFeed from './utils/xml.js';
+import Feeds from './utils/feeds.js';
 
 const i18nextInstance = i18n.createInstance();
 
@@ -15,7 +15,11 @@ export default function init() {
   const state = {
     feeds: new Map(),
     posts: new Map(),
-
+    ui: {
+      feedback: { feedbackText: '', type: null },
+      currentPreviewPost: null,
+      preview: new Map(),
+    },
   };
 
   i18nextInstance
@@ -23,103 +27,88 @@ export default function init() {
       lng: 'ru',
       resources,
     }).then(() => {
-      document.querySelector('button').removeAttribute('disabled');
-
       setLocale({
         string: {
-          url: i18nextInstance.t('errors.invalid'),
-          min: i18nextInstance.t('errors.notEmpty'),
+          url: 'errors.invalid',
+          min: 'errors.notEmpty',
         },
       });
 
       addMethod(string, 'isExist', function hasUrlAlreadyAddedTest() {
-        return this.test('isExist', i18nextInstance.t('errors.alreadyExist'), (url) => !state.feeds.has(url));
+        return this.test('isExist', 'errors.alreadyExist', (url) => !state.feeds.has(url));
       });
 
       const schema = string().url().min(1).isExist();
 
       const watchedObject = view(state, i18nextInstance);
 
-      document.forms[0].addEventListener('submit', (event) => {
-        event.preventDefault();
-        const url = new FormData(event.target).get('url');
+      const feeds = new Feeds(watchedObject);
 
-        schema.validate(url, {
+      document.querySelector('[data-element="form"]').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const feedUrl = new FormData(event.target).get('url');
+
+        schema.validate(feedUrl, {
           abortEarly: false,
         })
-          .then(() => {
-            getPosts(url)
-              .then((response) => {
-                const dom = xmlToDOM(response.data.contents);
-                const errorNode = dom.querySelector('parsererror');
-                if (errorNode) {
-                  watchedObject.feedback = { feedbackText: i18nextInstance.t('errors.wrongFeed') };
-                  return;
-                }
+          .then(() => getPosts(feedUrl))
+          .then((response) => {
+            const xml = new XMLFeed(response.data.contents);
 
-                watchedObject.feeds.set(url, { ...getFeedData(dom), posts: [] });
+            feeds.addNewFeed(feedUrl, xml.getFeedData());
 
-                [...dom.querySelectorAll('item')].reverse().forEach((post) => {
-                  const postId = nanoid();
-                  watchedObject.posts.set(postId, { ...getPostData(post), hasViewed: false });
-                  watchedObject.feeds.get(url).posts.push(postId);
-                });
-                watchedObject.feedback = { feedbackText: i18nextInstance.t('success'), type: 'success' };
-              })
-              .catch(() => {
-                watchedObject.feedback = { feedbackText: i18nextInstance.t('errors.network') };
+            xml
+              .getPosts()
+              .forEach((postData) => {
+                feeds.addNewPostToFeed(feedUrl, postData);
               });
+            watchedObject.ui.feedback = { type: 'success' };
           })
           .catch((error) => {
-            watchedObject.feedback = { feedbackText: error.inner[0].message, type: 'inputError' };
+            watchedObject.ui.feedback = { type: 'error', error };
           });
-      }, true);
+      });
 
-      document.querySelector('.posts').addEventListener('click', (event) => {
-        if (event.target.tagName === 'BUTTON') {
-          const { postId } = event.target.closest('li').dataset;
-          watchedObject.posts.set(postId, {
-            ...watchedObject.posts.get(postId),
-            hasViewed: true,
-          });
-          watchedObject.currentPreviewPost = postId;
+      document.querySelector('[data-element="posts"]').addEventListener('click', (event) => {
+        if (event.target.dataset?.element === 'open_preview_button') {
+          const { postId } = event.target.dataset;
+          feeds.setPostAsViewed(postId);
+          watchedObject.ui.currentPreviewPost = postId;
         }
       });
+
       const reloadPosts = () => {
         setTimeout(() => {
-          Promise.allSettled([...state.feeds.entries()]
-            .map(([feedURL]) => getPosts(feedURL)))
+          Promise.allSettled(feeds.getFeedsList()
+            .map((feedUrl) => getPosts(feedUrl)))
             .then((responses) => {
-              if (responses.some(({ value }) => value === 'rejected')) {
-                watchedObject.feedback = { feedbackText: i18nextInstance.t('errors.network') };
+              const someRequestFailed = responses.some(({ status }) => status === 'rejected');
+              if (someRequestFailed) {
+                watchedObject.ui.feedback = { type: 'error', error: new AxiosError() };
               }
-              responses.filter(({ value }) => value === 'fulfilled').forEach(({ value: response }) => {
-                const { url } = response.config.params;
-                const { contents } = response.data;
+              responses
+                .filter(({ status }) => status === 'fulfilled')
+                .forEach(({ value: response }) => {
+                  try {
+                    const { url: feedUrl } = response.config.params;
 
-                const dom = xmlToDOM(contents);
-                const errorNode = dom.querySelector('parsererror');
-                if (errorNode) {
-                  watchedObject.errors = i18nextInstance.t('errors.wrongFeed');
-                  return;
-                }
-                const feedPostsIds = state.feeds.get(url).posts;
+                    const xml = new XMLFeed(response.data.contents);
 
-                const feedPosts = [...state.posts
-                  .entries()]
-                  .filter(([postId]) => feedPostsIds.includes(postId));
+                    const currentFeedPosts = feeds.getFeedPosts(feedUrl);
+                    const newPosts = xml.getPosts();
 
-                [...dom.querySelectorAll('item')]
-                  .reverse()
-                  .forEach((post) => {
-                    const newPostData = { ...getPostData(post), hasViewed: false };
-                    if (!feedPosts.some(([, postData]) => postData.title === newPostData.title)) {
-                      const postId = nanoid();
-                      watchedObject.posts.set(postId, newPostData);
-                      watchedObject.feeds.get(url).posts.push(postId);
-                    }
-                  });
-              });
+                    newPosts
+                      .forEach((newPostData) => {
+                        const hasFeedAlreadyContainPost = currentFeedPosts
+                          .some(([, postData]) => postData.title === newPostData.title);
+                        if (!hasFeedAlreadyContainPost) {
+                          feeds.addNewPostToFeed(feedUrl, newPostData);
+                        }
+                      });
+                  } catch (error) {
+                    watchedObject.ui.feedback = { type: 'error', error };
+                  }
+                });
 
               reloadPosts();
             });
