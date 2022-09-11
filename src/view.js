@@ -72,8 +72,10 @@ export default function view(state, i18nextInstance) {
     if (path.includes('ui.preview')) {
       const [postId, { hasViewed }] = applyData.args;
       if (hasViewed) {
-        document.querySelector(`[data-element="open_preview_link"][data-post-id="${postId}"]`).classList
-          .add('fw-normal', 'link-secondary')
+        const postElement = document.querySelector(`[data-element="open_preview_link"][data-post-id="${postId}"]`);
+        postElement.classList
+          .add('fw-normal', 'link-secondary');
+        postElement.classList
           .remove('fw-bold');
       }
     }
