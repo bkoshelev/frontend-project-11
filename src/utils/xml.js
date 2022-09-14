@@ -1,6 +1,8 @@
 const domParser = new DOMParser();
 
-class XMLError extends Error {}
+class XMLError extends Error {
+  name = 'XMLError';
+}
 
 const getPostData = (postXML) => ({
   title: postXML.querySelector('title').textContent,
