@@ -14,11 +14,10 @@
       <div class="row ">
         <p>Начните читать RSS сегодня! Это легко, это красиво.</p>
       </div>
-      <form data-element="form">
+      <form class="rss-form">
         <div class="row">
           <div class="col">
             <input
-              data-element="newFeedInput"
               type="text"
               class="form-control"
               id="url-input"
@@ -30,7 +29,7 @@
             />
           </div>
           <div class="col">
-            <button type="submit" class="btn btn-primary" disabled   data-element="addNewFeedButton">Добавить</button>
+            <button type="submit" class="btn btn-primary" disabled >Добавить</button>
           </div>
         </div>
       </form>
@@ -38,16 +37,16 @@
         <p>Пример: https://ru.hexlet.io/lessons.rss</p>
       </div>
       <div class="row">
-        <p class="feedback small" data-element="feedbackText"></p>
+        <p class="feedback small"></p>
       </div>
 
     </div>
     <div class="container-fluid">
       <div class="row">
-        <div class="col posts" data-element="posts">
+        <div class="col posts">
           <div class="card border-0"></div>
         </div>
-        <div class="col" data-element="feeds">
+        <div class="col feeds">
           <div class="card border-0"></div>
 
         </div>
@@ -68,7 +67,7 @@
     <div class="modal-dialog" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" data-element="modalTitle"></h5>
+          <h5 class="modal-title" ></h5>
           <button
           type="button"
           class="btn-close close"
@@ -76,9 +75,9 @@
           aria-label="Close"
           ></button>
         </div>
-        <div class="modal-body text-break" data-element="modalBody">
+        <div class="modal-body text-break">
         </div>
-        <div class="modal-footer" data-element="modalFooter">
+        <div class="modal-footer">
           <a
           class="btn btn-primary full-article"
           href="#"
