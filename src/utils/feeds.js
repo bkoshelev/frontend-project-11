@@ -1,41 +1,10 @@
-import { nanoid } from 'nanoid';
+export const addNewPostToFeed = (state, feedId, newPostData) => {
+  state.posts.items.push({ id: newPostData.title, ...newPostData });
+  const feed = state.feeds.items.find(({ id }) => id === feedId);
+  feed.posts.push(newPostData.title);
+};
 
-export default class Feeds {
-  constructor(state) {
-    this.state = state;
-  }
-
-  addNewPostToFeed(feed, newPostData) {
-    const postId = nanoid();
-    this.state.posts
-      .set(postId, newPostData);
-    this.state.feeds
-      .get(feed).posts.push(postId);
-
-    this.state.ui.preview.set(postId, { hasViewed: false });
-  }
-
-  addNewFeed(feedUrl, feedData) {
-    this.state.feeds
-      .set(feedUrl, { ...feedData, posts: [] });
-  }
-
-  getFeedPosts(feedUrl) {
-    const feedPostsIds = this.state.feeds.get(feedUrl).posts;
-
-    return [...this.state.posts.entries()]
-      .filter(([postId]) => feedPostsIds.includes(postId));
-  }
-
-  getFeedsList() {
-    return [...this.state.feeds.entries()]
-      .map(([feedUrl]) => feedUrl);
-  }
-
-  setPostAsViewed(postId) {
-    this.state.ui.preview.set(postId, {
-      ...this.state.ui.preview.get(postId),
-      hasViewed: true,
-    });
-  }
-}
+export const addNewFeed = (state, feedUrl, feedData) => {
+  state.feeds.items.push({ id: feedUrl, ...feedData, posts: [] });
+  state.feeds.ids.push(feedUrl);
+};
