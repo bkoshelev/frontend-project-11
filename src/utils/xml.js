@@ -1,17 +1,6 @@
 const domParser = new DOMParser();
 
-const XMLparse = (string) => {
-  const xml = domParser.parseFromString(string, 'application/xml');
-
-  const errorNode = xml.querySelector('parsererror');
-  if (errorNode) {
-    const error = new Error();
-    error.name = 'XMLError';
-    throw error;
-  } else {
-    return xml;
-  }
-};
+class XMLError extends Error {}
 
 const getPostData = (postXML) => ({
   title: postXML.querySelector('title').textContent,
@@ -19,23 +8,31 @@ const getPostData = (postXML) => ({
   description: postXML.querySelector('description').textContent,
 });
 
-export default class XMLFeed {
-  constructor(feedString) {
-    this.feedXML = XMLparse(feedString);
-  }
+const getPosts = (feedXML) => [...feedXML.querySelectorAll('item')]
+  .reverse()
+  .map(getPostData);
 
-  getFeedData() {
-    const feedData = ({
-      title: this.feedXML.querySelector('title').textContent,
-      description: this.feedXML.querySelector('description').textContent,
-      link: this.feedXML.querySelector('link').textContent,
-    });
-    return feedData;
-  }
+const getFeedData = (feedXML) => {
+  const feedData = ({
+    title: feedXML.querySelector('title').textContent,
+    description: feedXML.querySelector('description').textContent,
+    link: feedXML.querySelector('link').textContent,
+  });
+  return feedData;
+};
 
-  getPosts() {
-    return [...this.feedXML.querySelectorAll('item')]
-      .reverse()
-      .map(getPostData);
+const XMLparse = (string) => {
+  const xml = domParser.parseFromString(string, 'application/xml');
+
+  const errorNode = xml.querySelector('parsererror');
+  if (errorNode) {
+    throw new XMLError();
+  } else {
+    return {
+      feedData: getFeedData(xml),
+      posts: getPosts(xml),
+    };
   }
-}
+};
+
+export default XMLparse;
