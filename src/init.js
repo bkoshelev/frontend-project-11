@@ -1,25 +1,41 @@
-import {
-  addMethod, string, setLocale,
-} from 'yup';
+import { string, setLocale } from 'yup';
 import i18n from 'i18next';
-import { AxiosError } from 'axios';
 import view from './view.js';
 import resources from './locales/ru.js';
 import getPosts from './api/getPosts.js';
-import XMLFeed from './utils/xml.js';
-import Feeds from './utils/feeds.js';
+import { addNewFeed, addNewPostToFeed } from './utils/feeds.js';
+import XMLparse from './utils/xml.js';
+
+const UPDATE_TIME = 5000;
 
 const i18nextInstance = i18n.createInstance();
 
 export default function init() {
   const state = {
-    feeds: new Map(),
-    posts: new Map(),
-    ui: {
-      feedback: { feedbackText: '', type: null },
-      currentPreviewPost: null,
-      preview: new Map(),
+    feeds: {
+      ids: [],
+      items: [],
     },
+    posts: {
+      items: [],
+    },
+    ui: {
+      feedback: { error: null, type: null },
+      currentPreviewPost: null,
+      seenPosts: new Set(),
+    },
+  };
+
+  const elements = {
+    feeds: document.querySelector('.feeds').firstElementChild,
+    posts: document.querySelector('.posts').firstElementChild,
+    modalTitle: document.querySelector('.modal-title'),
+    modalBody: document.querySelector('.modal-body'),
+    modalFooter: document.querySelector('.modal-footer'),
+    feedback: document.querySelector('.feedback'),
+    newFeedInput: document.querySelector('.form-control'),
+    form: document.querySelector('.rss-form'),
+    addNewFeedButton: document.querySelector('.rss-form button[type="submit"]'),
   };
 
   i18nextInstance
@@ -30,38 +46,34 @@ export default function init() {
       setLocale({
         string: {
           url: 'errors.invalid',
-          min: 'errors.notEmpty',
+        },
+        mixed: {
+          required: 'errors.notEmpty',
+          notOneOf: 'errors.alreadyExist',
         },
       });
 
-      addMethod(string, 'isExist', function hasUrlAlreadyAddedTest() {
-        return this.test('isExist', 'errors.alreadyExist', (url) => !state.feeds.has(url));
-      });
+      const schema = string().required().url();
 
-      const schema = string().url().min(1).isExist();
+      const watchedObject = view(state, i18nextInstance, elements);
 
-      const watchedObject = view(state, i18nextInstance);
-
-      const feeds = new Feeds(watchedObject);
-
-      document.querySelector('[data-element="form"]').addEventListener('submit', (event) => {
+      elements.form.addEventListener('submit', (event) => {
         event.preventDefault();
         const feedUrl = new FormData(event.target).get('url');
 
-        schema.validate(feedUrl, {
+        const actualUrlSchema = schema.notOneOf(state.feeds.ids);
+
+        actualUrlSchema.validate(feedUrl, {
           abortEarly: false,
         })
           .then(() => getPosts(feedUrl))
           .then((response) => {
-            const xml = new XMLFeed(response.data.contents);
+            const { feedData, posts } = XMLparse(response.data.contents);
+            addNewFeed(watchedObject, feedUrl, feedData);
 
-            feeds.addNewFeed(feedUrl, xml.getFeedData());
-
-            xml
-              .getPosts()
-              .forEach((postData) => {
-                feeds.addNewPostToFeed(feedUrl, postData);
-              });
+            posts.forEach((postData) => {
+              addNewPostToFeed(watchedObject, feedUrl, postData);
+            });
             watchedObject.ui.feedback = { type: 'success' };
           })
           .catch((error) => {
@@ -69,50 +81,37 @@ export default function init() {
           });
       });
 
-      document.querySelector('[data-element="posts"]').addEventListener('click', (event) => {
-        if (event.target.dataset?.element === 'open_preview_button') {
-          const { postId } = event.target.dataset;
-          feeds.setPostAsViewed(postId);
+      elements.posts.addEventListener('click', (event) => {
+        if (event.target.classList.contains('open_preview_button')) {
+          const postId = event.target.previousElementSibling.textContent;
+          watchedObject.ui.seenPosts.add(postId);
           watchedObject.ui.currentPreviewPost = postId;
         }
       });
 
       const reloadPosts = () => {
+        const requests = state.feeds.ids.map((feedUrl) => getPosts(feedUrl)
+          .then((response) => {
+            const { posts: newPosts } = XMLparse(response.data.contents);
+
+            newPosts
+              .forEach((newPostData) => {
+                const hasFeedAlreadyContainPost = state.feeds.items
+                  .find(({ id }) => feedUrl === id).posts.includes(newPostData.title);
+                if (!hasFeedAlreadyContainPost) {
+                  addNewPostToFeed(watchedObject, feedUrl, newPostData);
+                }
+              });
+          }).catch((error) => {
+            watchedObject.ui.feedback = { type: 'error', error };
+          }));
+
         setTimeout(() => {
-          Promise.allSettled(feeds.getFeedsList()
-            .map((feedUrl) => getPosts(feedUrl)))
-            .then((responses) => {
-              const someRequestFailed = responses.some(({ status }) => status === 'rejected');
-              if (someRequestFailed) {
-                watchedObject.ui.feedback = { type: 'error', error: new AxiosError() };
-              }
-              responses
-                .filter(({ status }) => status === 'fulfilled')
-                .forEach(({ value: response }) => {
-                  try {
-                    const { url: feedUrl } = response.config.params;
-
-                    const xml = new XMLFeed(response.data.contents);
-
-                    const currentFeedPosts = feeds.getFeedPosts(feedUrl);
-                    const newPosts = xml.getPosts();
-
-                    newPosts
-                      .forEach((newPostData) => {
-                        const hasFeedAlreadyContainPost = currentFeedPosts
-                          .some(([, postData]) => postData.title === newPostData.title);
-                        if (!hasFeedAlreadyContainPost) {
-                          feeds.addNewPostToFeed(feedUrl, newPostData);
-                        }
-                      });
-                  } catch (error) {
-                    watchedObject.ui.feedback = { type: 'error', error };
-                  }
-                });
-
+          Promise.all(requests)
+            .finally(() => {
               reloadPosts();
             });
-        }, 5000);
+        }, UPDATE_TIME);
       };
       reloadPosts();
     });
